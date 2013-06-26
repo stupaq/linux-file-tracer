@@ -30,6 +30,7 @@
 #include <linux/falloc.h>
 #include <linux/fs_struct.h>
 #include <linux/ima.h>
+#include <trace/file_trace.h>
 
 #include "internal.h"
 
@@ -1058,6 +1059,7 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 				fd_install(fd, f);
 			}
 		}
+		trace_file_trace_open(tmp, flags, mode, fd);
 		putname(tmp);
 	}
 	return fd;
@@ -1159,10 +1161,12 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 		     retval == -ERESTART_RESTARTBLOCK))
 		retval = -EINTR;
 
+	trace_file_trace_close(fd, retval);
 	return retval;
 
 out_unlock:
 	spin_unlock(&files->file_lock);
+	trace_file_trace_close(fd, -EBADF);
 	return -EBADF;
 }
 EXPORT_SYMBOL(sys_close);

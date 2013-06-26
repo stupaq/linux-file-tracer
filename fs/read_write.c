@@ -16,6 +16,7 @@
 #include <linux/syscalls.h>
 #include <linux/pagemap.h>
 #include <linux/splice.h>
+#include <linux/file_trace.h>
 #include "read_write.h"
 
 #include <asm/uaccess.h>
@@ -167,6 +168,7 @@ SYSCALL_DEFINE3(lseek, unsigned int, fd, off_t, offset, unsigned int, origin)
 	}
 	fput_light(file, fput_needed);
 bad:
+	trace_file_trace_lseek(fd, offset, origin, retval);
 	return retval;
 }
 
@@ -201,6 +203,8 @@ SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned long, offset_high,
 out_putf:
 	fput_light(file, fput_needed);
 bad:
+	trace_file_trace_lseek(fd, ((loff_t) offset_high << 32) | offset_low,
+			origin, retval);
 	return retval;
 }
 #endif

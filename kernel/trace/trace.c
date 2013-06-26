@@ -4538,6 +4538,7 @@ __init static int tracer_alloc_buffers(void)
 #ifdef CONFIG_BOOT_TRACER
 	register_tracer(&boot_tracer);
 #endif
+	register_tracer(&file_tracer);
 	/* All seems OK, enable tracing */
 	tracing_disabled = 0;
 

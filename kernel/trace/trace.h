@@ -50,6 +50,7 @@ enum kmemtrace_type_id {
 };
 
 extern struct tracer boot_tracer;
+extern struct tracer file_tracer;
 
 #undef __field
 #define __field(type, item)		type	item;
