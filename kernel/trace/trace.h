@@ -39,6 +39,13 @@ enum trace_type {
 	TRACE_KMEM_FREE,
 	TRACE_BLK,
 	TRACE_KSYM,
+	TRACE_FILE_OPEN,
+	TRACE_FILE_CLOSE,
+	TRACE_FILE_READ,
+	TRACE_FILE_WRITE,
+	TRACE_FILE_RDATA,
+	TRACE_FILE_WDATA,
+	TRACE_FILE_LSEEK,
 
 	__TRACE_LAST_TYPE,
 };
@@ -50,6 +57,7 @@ enum kmemtrace_type_id {
 };
 
 extern struct tracer boot_tracer;
+extern struct tracer file_tracer;
 
 #undef __field
 #define __field(type, item)		type	item;
@@ -236,6 +244,13 @@ extern void __ftrace_bad_type(void);
 			  TRACE_KMEM_FREE);	\
 		IF_ASSIGN(var, ent, struct ksym_trace_entry, TRACE_KSYM);\
 		__ftrace_bad_type();					\
+		IF_ASSIGN(var, ent, struct file_trace_open, TRACE_FILE_OPEN);\
+		IF_ASSIGN(var, ent, struct file_trace_close, TRACE_FILE_CLOSE);\
+		IF_ASSIGN(var, ent, struct file_trace_read, TRACE_FILE_READ);\
+		IF_ASSIGN(var, ent, struct file_trace_write, TRACE_FILE_WRITE);\
+		IF_ASSIGN(var, ent, struct file_trace_rdata, TRACE_FILE_RDATA);\
+		IF_ASSIGN(var, ent, struct file_trace_wdata, TRACE_FILE_WDATA);\
+		IF_ASSIGN(var, ent, struct file_trace_lseek, TRACE_FILE_LSEEK);\
 	} while (0)
 
 /*

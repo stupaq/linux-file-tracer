@@ -1060,6 +1060,7 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 				file_trace_setup(f);
 			}
 		}
+		file_trace_open(filename, flags, mode, fd);
 		putname(tmp);
 	}
 	return fd;
@@ -1161,10 +1162,12 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 		     retval == -ERESTART_RESTARTBLOCK))
 		retval = -EINTR;
 
+	file_trace_close(fd, retval);
 	return retval;
 
 out_unlock:
 	spin_unlock(&files->file_lock);
+	file_trace_close(fd, -EBADF);
 	return -EBADF;
 }
 EXPORT_SYMBOL(sys_close);

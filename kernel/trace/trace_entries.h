@@ -380,3 +380,76 @@ FTRACE_ENTRY(ksym_trace, ksym_trace_entry,
 		(void *)__entry->ip, (unsigned int)__entry->type,
 		(void *)__entry->addr,  __entry->cmd)
 );
+
+/* FILE_TRACE_* entries */
+FTRACE_ENTRY(file_trace_open, file_trace_open,
+	TRACE_FILE_OPEN,
+	F_STRUCT(
+		__field(	pid_t,		pid)
+		__field(	int,		flags)
+		__field(	int,		mode)
+		__field(	long,		retval)
+		__field(	char*,		filename)
+	),
+	F_printk("%d OPEN", __entry->pid)
+);
+
+FTRACE_ENTRY(file_trace_close, file_trace_close,
+	TRACE_FILE_CLOSE,
+	F_STRUCT(
+		__field(	pid_t,		pid)
+		__field(	unsigned int,	fd)
+		__field(	int,		retval)
+	),
+	F_printk("%d CLOSE", __entry->pid)
+);
+
+#define FILE_TRACE_RW_FIELDS \
+	__field(	pid_t,		pid)	  \
+	__field(	unsigned int,	fd)	  \
+	__field(	size_t,		count)	  \
+	__field(	ssize_t,	processed)\
+
+FTRACE_ENTRY(file_trace_read, file_trace_read,
+	TRACE_FILE_READ,
+	F_STRUCT(FILE_TRACE_RW_FIELDS),
+	F_printk("%d READ", __entry->pid)
+);
+
+FTRACE_ENTRY(file_trace_write, file_trace_write,
+	TRACE_FILE_WRITE,
+	F_STRUCT(FILE_TRACE_RW_FIELDS),
+	F_printk("%d WRITE", __entry->pid)
+);
+
+#define FILE_TRACE_MAX_DATA 16
+
+/* An entry with length == 0 represents an error while reading/writing data */
+#define FILE_TRACE_DATA_FIELDS \
+	__field(	pid_t,		pid)				\
+	__field(	size_t,		length)				\
+	__array(	char,		data,	    FILE_TRACE_MAX_DATA)\
+
+FTRACE_ENTRY(file_trace_rdata, file_trace_rdata,
+	TRACE_FILE_RDATA,
+	F_STRUCT(FILE_TRACE_DATA_FIELDS),
+	F_printk("%d READ_DATA", __entry->pid)
+);
+
+FTRACE_ENTRY(file_trace_wdata, file_trace_wdata,
+	TRACE_FILE_WDATA,
+	F_STRUCT(FILE_TRACE_DATA_FIELDS),
+	F_printk("%d WRITE_DATA", __entry->pid)
+);
+
+FTRACE_ENTRY(file_trace_lseek, file_trace_lseek,
+	TRACE_FILE_LSEEK,
+	F_STRUCT(
+		__field(	pid_t,		pid)
+		__field(	unsigned int,	fd)
+		__field(	loff_t,		offset)
+		__field(	int,		origin)
+		__field(	int,		retval)
+	),
+	F_printk("%d LSEEK", __entry->pid)
+);
