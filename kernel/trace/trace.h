@@ -243,14 +243,14 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct kmemtrace_free_entry,	\
 			  TRACE_KMEM_FREE);	\
 		IF_ASSIGN(var, ent, struct ksym_trace_entry, TRACE_KSYM);\
+		IF_ASSIGN(var, ent, struct file_open_entry, TRACE_FILE_OPEN);\
+		IF_ASSIGN(var, ent, struct file_close_entry, TRACE_FILE_CLOSE);\
+		IF_ASSIGN(var, ent, struct file_read_entry, TRACE_FILE_READ);\
+		IF_ASSIGN(var, ent, struct file_write_entry, TRACE_FILE_WRITE);\
+		IF_ASSIGN(var, ent, struct file_rdata_entry, TRACE_FILE_RDATA);\
+		IF_ASSIGN(var, ent, struct file_wdata_entry, TRACE_FILE_WDATA);\
+		IF_ASSIGN(var, ent, struct file_lseek_entry, TRACE_FILE_LSEEK);\
 		__ftrace_bad_type();					\
-		IF_ASSIGN(var, ent, struct file_trace_open, TRACE_FILE_OPEN);\
-		IF_ASSIGN(var, ent, struct file_trace_close, TRACE_FILE_CLOSE);\
-		IF_ASSIGN(var, ent, struct file_trace_read, TRACE_FILE_READ);\
-		IF_ASSIGN(var, ent, struct file_trace_write, TRACE_FILE_WRITE);\
-		IF_ASSIGN(var, ent, struct file_trace_rdata, TRACE_FILE_RDATA);\
-		IF_ASSIGN(var, ent, struct file_trace_wdata, TRACE_FILE_WDATA);\
-		IF_ASSIGN(var, ent, struct file_trace_lseek, TRACE_FILE_LSEEK);\
 	} while (0)
 
 /*

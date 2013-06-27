@@ -8,63 +8,78 @@
 #include <linux/ftrace.h>
 #include "trace.h"
 
-static struct trace_array *file_tracer = NULL;
+DEFINE_TRACE(file_open);
+DEFINE_TRACE(file_close);
+DEFINE_TRACE(file_lseek);
+
+static struct trace_array *this_tracer = NULL;
 
 /* Trace handlers */
-void file_trace_open(const char __user *filename, int flags, int mode,
+static void probe_open(const char __user *filename, int flags, int mode,
 		long retval) {
-	struct ftrace_event_call *call = &event_boot_call;
-        struct ring_buffer_event *event;
-        struct ring_buffer *buffer;
-        struct trace_boot_open *entry;
+	struct ring_buffer_event *event;
+	struct file_open_entry *entry;
 	char *tmp;
 
-	if (!file_tracer)
+	if (!this_tracer)
 		return;
 	tmp = getname(filename);
 	if (IS_ERR(tmp))
 		return;
-	event = trace_buffer_lock_reserve(file_tracer->buffer, TRACE_FILE_OPEN,
+	event = trace_buffer_lock_reserve(this_tracer->buffer, TRACE_FILE_OPEN,
 			sizeof(*entry), 0, 0);
 	if (!event)
 		return;
 	entry = ring_buffer_event_data(event);
-	entry->flags;
-	entry->mode;
-	entry->retval;
+	entry->flags = flags;
+	entry->mode = mode;
+	entry->retval = retval;
 	entry->filename = tmp;
-	if (!filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit(buffer, event, 0, 0);
+	trace_buffer_unlock_commit(this_tracer->buffer, event, 0, 0);
 }
 
-void file_trace_close(unsigned int fd, int retval) {
-	if (!file_tracer)
+static void probe_close(unsigned int fd, int retval) {
+	if (!this_tracer)
 		return;
 	// TODO
 }
 
-void probe_lseek(unsigned int fd, loff_t offset, int origin, int retval) {
-	if (!file_tracer)
+static void probe_lseek(unsigned int fd, loff_t offset, int origin, int retval)
+{
+	if (!this_tracer)
 		return;
 	// TODO
 }
 
 /* Tracer instrumentation */
 static void file_trace_start(struct trace_array *tr) {
-	file_tracer = tr;
+	this_tracer = tr;
 }
 
 static void file_trace_stop(struct trace_array *tr) {
-	file_tracer = NULL;
+	this_tracer = NULL;
 }
 
 static int file_trace_init(struct trace_array *tr) {
+	int ret;
 	tracing_reset_online_cpus(tr);
 	file_trace_start(tr);
-	return 0;
+	/* Register trace handlers */
+	if ((ret = register_trace_file_open(probe_open)))
+		return ret;
+	if ((ret = register_trace_file_close(probe_close)))
+		return ret;
+	if ((ret = register_trace_file_lseek(probe_lseek)))
+		return ret;
+	return ret;
 }
 
 static void file_trace_reset(struct trace_array *tr) {
+	/* Unregister trace handlers */
+	register_trace_file_open(probe_open);
+	register_trace_file_close(probe_close);
+	register_trace_file_lseek(probe_lseek);
+
 	file_trace_stop(tr);
 	tracing_reset_online_cpus(tr);
 }
@@ -75,18 +90,18 @@ static void file_trace_print_header(struct seq_file *s) {
 
 /* Per-event printfs */
 static int print_line_open(struct trace_iterator *iter) {
-	struct file_trace_open *field;
+	struct file_open_entry *field;
 	const char *format;
 	int ret;
 
-	BUG_ON(NULL == field->filename);
 	trace_assign_type(field, iter->ent);
+	BUG_ON(NULL == field->filename);
 	format = "%d OPEN %s %#x %#o SUCCESS %d\n";
 	if (IS_ERR_VALUE(field->retval)) {
 		format = "%d OPEN %s %#x %#o ERR %d\n";
 		field->retval *= -1;
 	}
-	ret = trace_seq_printf(iter->seq, format, field->pid, field->filename,
+	ret = trace_seq_printf(&iter->seq, format, field->pid, field->filename,
 			field->flags, field->mode, field->retval);
 	putname(field->filename);
 	field->filename = NULL;
@@ -94,71 +109,70 @@ static int print_line_open(struct trace_iterator *iter) {
 }
 
 static int print_line_close(struct trace_iterator *iter) {
-	struct file_trace_close *field;
-	const char *format;
-	trace_assign_type(field, ent);
+	struct file_close_entry *field;
+	trace_assign_type(field, iter->ent);
 	if (IS_ERR_VALUE(field->retval))
-		return trace_seq_printf(seq, "%d CLOSE %d ERR %d\n"
+		return trace_seq_printf(&iter->seq, "%d CLOSE %d ERR %d\n",
 				field->pid, field->fd, field->retval);
 	else
-		return trace_seq_printf(seq, "%d CLOSE %d SUCCESS\n",
+		return trace_seq_printf(&iter->seq, "%d CLOSE %d SUCCESS\n",
 				field->pid, field->fd);
 }
 
 static int print_line_read(struct trace_iterator *iter) {
-	struct file_trace_read *field;
+	struct file_read_entry *field;
 	const char *format;
-	trace_assign_type(field, ent);
+	trace_assign_type(field, iter->ent);
 	format = "%d READ %d %d SUCCESS %d\n";
 	if (IS_ERR_VALUE(field->retval)) {
 		format = "%d READ %d %d ERR %d\n";
 		field->retval *= -1;
 	}
-	return trace_seq_printf(seq, format, field->pid, field->fd,
-			field->count, field->processed);
+	return trace_seq_printf(&iter->seq, format, field->pid, field->fd,
+			field->count, field->retval);
 }
 
 static int print_line_write(struct trace_iterator *iter) {
-	struct file_trace_write *field;
+	struct file_write_entry *field;
 	const char *format;
-	trace_assign_type(field, ent);
+	trace_assign_type(field, iter->ent);
 	format = "%d WRITE %d %d SUCCESS %d\n";
 	if (IS_ERR_VALUE(field->retval)) {
 		format = "%d WRITE %d %d ERR %d\n";
 		field->retval *= -1;
 	}
-	return trace_seq_printf(seq, format, field->pid, field->fd,
-			field->count, field->processed);
+	return trace_seq_printf(&iter->seq, format, field->pid, field->fd,
+			field->count, field->retval);
 }
 
 static int print_line_rdata(struct trace_iterator *iter) {
-	struct file_trace_rdata *field;
-	const char *format;
-	trace_assign_type(field, ent);
+	struct file_rdata_entry *field;
+	trace_assign_type(field, iter->ent);
 	if (field->length) {
 		// TODO
-	} else return trace_seq_printf(seq, "READ_DATA_FAULT\n");
+		return 1;
+	} else return trace_seq_printf(&iter->seq, "READ_DATA_FAULT\n");
 }
 
 static int print_line_wdata(struct trace_iterator *iter) {
-	struct file_trace_wdata *field;
-	const char *format;
-	trace_assign_type(field, ent);
+	struct file_wdata_entry *field;
+	trace_assign_type(field, iter->ent);
 	if (field->length) {
 		// TODO
-	} else return trace_seq_printf(seq, "WRITE_DATA_FAULT\n");
+		return 1;
+	} else return trace_seq_printf(&iter->seq, "WRITE_DATA_FAULT\n");
 }
 
 static int print_line_lseek(struct trace_iterator *iter) {
-	struct file_trace_lseek *field;
+	struct file_lseek_entry *field;
 	const char *format;
-	trace_assign_type(field, ent);
+	trace_assign_type(field, iter->ent);
 	format = "%d LSEEK %d %d %d SUCCESS %d\n";
 	if (IS_ERR_VALUE(field->retval)) {
 		format = "%d LSEEK %d %d %d ERR %d\n";
 		field->retval *= -1;
 	}
-	return trace_seq_printf(seq, format, field->pid, field->fd,
+	return trace_seq_printf(&iter->seq, format, field->pid, field->fd,
 			field->offset, field->origin, field->retval);
 }
 
@@ -166,7 +180,7 @@ static int print_line_lseek(struct trace_iterator *iter) {
 static enum print_line_t file_trace_print_line(struct trace_iterator *iter) {
 	int ret = 1;
 
-	switch (iter->ent) {
+	switch (iter->ent->type) {
 	case TRACE_FILE_OPEN:
 		ret = print_line_open(iter);
 		break;
@@ -188,6 +202,8 @@ static enum print_line_t file_trace_print_line(struct trace_iterator *iter) {
 	case TRACE_FILE_LSEEK:
 		ret = print_line_lseek(iter);
 		break;
+	default:
+		return TRACE_TYPE_UNHANDLED;
 	}
 
 	return ret ? TRACE_TYPE_HANDLED : TRACE_TYPE_PARTIAL_LINE;

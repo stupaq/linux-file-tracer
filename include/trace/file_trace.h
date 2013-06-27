@@ -3,18 +3,34 @@
 
 #include <linux/kernel.h>
 #include <linux/xattr.h>
+#include <linux/fs.h>
+#include <linux/tracepoint.h>
 
-#define FILE_TRACE_ATTR "user.file_trace"
+DECLARE_TRACE(file_open,
+	TP_PROTO(const char __user *filename, int flags, int mode, long retval),
+	TP_ARGS(filename, flags, mode, retval));
 
-static __always_inline void file_trace_setup(struct file *f) {
-	f->f_tracing = vfs_getxattr(f->f_dentry, FILE_TRACE_ATTR, NULL, 0) >= 0;
+DECLARE_TRACE(file_close,
+	TP_PROTO(unsigned int fd, int retval),
+	TP_ARGS(fd, retval));
+
+DECLARE_TRACE(file_lseek,
+	TP_PROTO(unsigned int fd, loff_t offset, int origin, int retval),
+	TP_ARGS(fd, offset, origin, retval));
+
+static __always_inline bool file_trace_enabled(struct file *f) {
+#ifdef CONFIG_TRACING
+	return f && f->f_tracing;
+#else
+	return false;
+#endif
 }
 
-void file_trace_open(const char __user *filename, int flags, int mode, long
-		retval);
-
-void file_trace_close(unsigned int fd, int retval);
-
-void probe_lseek(unsigned int fd, loff_t offset, int origin, int retval);
+static __always_inline void file_trace_setup(struct file *f) {
+#ifdef CONFIG_TRACING
+#define FILE_TRACE_ATTR "user.file_trace"
+	f->f_tracing = vfs_getxattr(f->f_dentry, FILE_TRACE_ATTR, NULL, 0) >= 0;
+#endif
+}
 
 #endif  /* _TRACE_FILE_TRACE_H */

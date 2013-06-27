@@ -1058,9 +1058,11 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 				fsnotify_open(f->f_path.dentry);
 				fd_install(fd, f);
 				file_trace_setup(f);
+				if (file_trace_enabled(f))
+					trace_file_open(filename, flags, mode,
+							fd);
 			}
 		}
-		file_trace_open(filename, flags, mode, fd);
 		putname(tmp);
 	}
 	return fd;
@@ -1141,6 +1143,7 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 	struct files_struct *files = current->files;
 	struct fdtable *fdt;
 	int retval;
+	bool do_trace = false;
 
 	spin_lock(&files->file_lock);
 	fdt = files_fdtable(files);
@@ -1153,6 +1156,7 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 	FD_CLR(fd, fdt->close_on_exec);
 	__put_unused_fd(files, fd);
 	spin_unlock(&files->file_lock);
+	do_trace = file_trace_enabled(filp);
 	retval = filp_close(filp, files);
 
 	/* can't restart close syscall because file table entry was cleared */
@@ -1162,12 +1166,14 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 		     retval == -ERESTART_RESTARTBLOCK))
 		retval = -EINTR;
 
-	file_trace_close(fd, retval);
+	if (do_trace)
+		trace_file_close(fd, retval);
 	return retval;
 
 out_unlock:
 	spin_unlock(&files->file_lock);
-	file_trace_close(fd, -EBADF);
+	if (do_trace)
+		trace_file_close(fd, -EBADF);
 	return -EBADF;
 }
 EXPORT_SYMBOL(sys_close);
