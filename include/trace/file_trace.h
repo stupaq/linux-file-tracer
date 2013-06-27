@@ -1,7 +1,6 @@
 #ifndef _TRACE_FILE_TRACE_H
 #define _TRACE_FILE_TRACE_H
 
-#define CREATE_TRACE_POINTS
 #include <trace/events/file_trace.h>
 
 static __always_inline
