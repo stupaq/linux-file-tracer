@@ -30,6 +30,7 @@
 #include <linux/falloc.h>
 #include <linux/fs_struct.h>
 #include <linux/ima.h>
+#include <trace/file_trace.h>
 
 #include "internal.h"
 
@@ -1056,6 +1057,7 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 			} else {
 				fsnotify_open(f->f_path.dentry);
 				fd_install(fd, f);
+				file_trace_setup(f);
 			}
 		}
 		putname(tmp);
