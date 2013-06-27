@@ -4,9 +4,11 @@
  * Copyright (C) 2013 Mateusz Machalica <mateuszmachalica@gmail.com>
  **/
 
-#include <trace/file_trace.h>
+#include <linux/limits.h>
 #include <linux/ftrace.h>
 #include "trace.h"
+
+#include <trace/file_trace.h>
 
 DEFINE_TRACE(file_open);
 DEFINE_TRACE(file_close);
@@ -15,40 +17,63 @@ DEFINE_TRACE(file_lseek);
 static struct trace_array *this_tracer = NULL;
 
 /* Trace handlers */
-static void probe_open(const char __user *filename, int flags, int mode,
+static void probe_open(const char *filename, int flags, int mode,
 		long retval) {
 	struct ring_buffer_event *event;
 	struct file_open_entry *entry;
-	char *tmp;
+	size_t fsize = strnlen(filename, PATH_MAX - 1) + 1;
 
 	if (!this_tracer)
 		return;
-	tmp = getname(filename);
-	if (IS_ERR(tmp))
-		return;
 	event = trace_buffer_lock_reserve(this_tracer->buffer, TRACE_FILE_OPEN,
-			sizeof(*entry), 0, 0);
+			sizeof(*entry) + fsize, 0, 0);
 	if (!event)
 		return;
 	entry = ring_buffer_event_data(event);
+	entry->pid = task_pid_nr(current);
 	entry->flags = flags;
 	entry->mode = mode;
 	entry->retval = retval;
-	entry->filename = tmp;
+	strncpy(entry->filename, filename, fsize);
+	entry->filename[fsize - 1]  = '\0';
 	trace_buffer_unlock_commit(this_tracer->buffer, event, 0, 0);
 }
 
 static void probe_close(unsigned int fd, int retval) {
+	struct ring_buffer_event *event;
+	struct file_close_entry *entry;
+
 	if (!this_tracer)
 		return;
-	// TODO
+	event = trace_buffer_lock_reserve(this_tracer->buffer, TRACE_FILE_CLOSE,
+			sizeof(*entry), 0, 0);
+	if (!event)
+		return;
+	entry = ring_buffer_event_data(event);
+	entry->pid = task_pid_nr(current);
+	entry->fd = fd;
+	entry->retval = retval;
+	trace_buffer_unlock_commit(this_tracer->buffer, event, 0, 0);
 }
 
 static void probe_lseek(unsigned int fd, loff_t offset, int origin, int retval)
 {
+	struct ring_buffer_event *event;
+	struct file_lseek_entry *entry;
+
 	if (!this_tracer)
 		return;
-	// TODO
+	event = trace_buffer_lock_reserve(this_tracer->buffer, TRACE_FILE_LSEEK,
+			sizeof(*entry), 0, 0);
+	if (!event)
+		return;
+	entry = ring_buffer_event_data(event);
+	entry->pid = task_pid_nr(current);
+	entry->fd = fd;
+	entry->offset = offset;
+	entry->origin = origin;
+	entry->retval = retval;
+	trace_buffer_unlock_commit(this_tracer->buffer, event, 0, 0);
 }
 
 /* Tracer instrumentation */
@@ -92,20 +117,15 @@ static void file_trace_print_header(struct seq_file *s) {
 static int print_line_open(struct trace_iterator *iter) {
 	struct file_open_entry *field;
 	const char *format;
-	int ret;
 
 	trace_assign_type(field, iter->ent);
-	BUG_ON(NULL == field->filename);
 	format = "%d OPEN %s %#x %#o SUCCESS %d\n";
 	if (IS_ERR_VALUE(field->retval)) {
 		format = "%d OPEN %s %#x %#o ERR %d\n";
 		field->retval *= -1;
 	}
-	ret = trace_seq_printf(&iter->seq, format, field->pid, field->filename,
+	return trace_seq_printf(&iter->seq, format, field->pid, field->filename,
 			field->flags, field->mode, field->retval);
-	putname(field->filename);
-	field->filename = NULL;
-	return ret;
 }
 
 static int print_line_close(struct trace_iterator *iter) {

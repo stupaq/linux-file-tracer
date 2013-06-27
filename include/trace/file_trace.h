@@ -7,7 +7,7 @@
 #include <linux/tracepoint.h>
 
 DECLARE_TRACE(file_open,
-	TP_PROTO(const char __user *filename, int flags, int mode, long retval),
+	TP_PROTO(const char *filename, int flags, int mode, long retval),
 	TP_ARGS(filename, flags, mode, retval));
 
 DECLARE_TRACE(file_close,

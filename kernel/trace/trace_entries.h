@@ -389,7 +389,7 @@ FTRACE_ENTRY(file_open, file_open_entry,
 		__field(	int,		flags)
 		__field(	int,		mode)
 		__field(	long,		retval)
-		__field(	char*,		filename)
+		__dynamic_array(char,		filename)
 	),
 	F_printk("%d OPEN", __entry->pid)
 );

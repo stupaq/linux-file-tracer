@@ -1059,8 +1059,7 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 				fd_install(fd, f);
 				file_trace_setup(f);
 				if (file_trace_enabled(f))
-					trace_file_open(filename, flags, mode,
-							fd);
+					trace_file_open(tmp, flags, mode, fd);
 			}
 		}
 		putname(tmp);
