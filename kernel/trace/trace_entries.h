@@ -385,27 +385,25 @@ FTRACE_ENTRY(ksym_trace, ksym_trace_entry,
 FTRACE_ENTRY(file_open, file_open_entry,
 	TRACE_FILE_OPEN,
 	F_STRUCT(
-		__field(	pid_t,		pid)
 		__field(	int,		flags)
 		__field(	int,		mode)
 		__field(	long,		retval)
 		__dynamic_array(char,		filename)
 	),
-	F_printk("%d OPEN", __entry->pid)
+	F_printk("OPEN %s %d %d %ld", __entry->filename, __entry->flags,
+		__entry->mode, __entry->retval)
 );
 
 FTRACE_ENTRY(file_close, file_close_entry,
 	TRACE_FILE_CLOSE,
 	F_STRUCT(
-		__field(	pid_t,		pid)
 		__field(	unsigned int,	fd)
 		__field(	int,		retval)
 	),
-	F_printk("%d CLOSE", __entry->pid)
+	F_printk("CLOSE %u %d", __entry->fd, __entry->retval)
 );
 
 #define FILE_TRACE_RW_FIELDS \
-	__field(	pid_t,		pid)		\
 	__field(	unsigned int,	fd)		\
 	__field(	size_t,		count)		\
 	__field(	ssize_t,	retval)		\
@@ -413,43 +411,44 @@ FTRACE_ENTRY(file_close, file_close_entry,
 FTRACE_ENTRY(file_read, file_read_entry,
 	TRACE_FILE_READ,
 	F_STRUCT(FILE_TRACE_RW_FIELDS),
-	F_printk("%d READ", __entry->pid)
+	F_printk("READ %u %u %d", __entry->fd, __entry->count,
+		__entry->retval)
 );
 
 FTRACE_ENTRY(file_write, file_write_entry,
 	TRACE_FILE_WRITE,
 	F_STRUCT(FILE_TRACE_RW_FIELDS),
-	F_printk("%d WRITE", __entry->pid)
+	F_printk("WRITE %u %u %d", __entry->fd, __entry->count,
+		__entry->retval)
 );
 
 #define FILE_TRACE_MAX_DATA 16
 
 /* An entry with length == 0 represents an error while reading/writing data */
 #define FILE_TRACE_DATA_FIELDS \
-	__field(	pid_t,		pid)				\
 	__field(	size_t,		length)				\
 	__array(	char,		data,	    FILE_TRACE_MAX_DATA)\
 
 FTRACE_ENTRY(file_rdata, file_rdata_entry,
 	TRACE_FILE_RDATA,
 	F_STRUCT(FILE_TRACE_DATA_FIELDS),
-	F_printk("%d READ_DATA", __entry->pid)
+	F_printk("READ_DATA %d", __entry->length)
 );
 
 FTRACE_ENTRY(file_wdata, file_wdata_entry,
 	TRACE_FILE_WDATA,
 	F_STRUCT(FILE_TRACE_DATA_FIELDS),
-	F_printk("%d WRITE_DATA", __entry->pid)
+	F_printk("WRITE_DATA %d", __entry->length)
 );
 
 FTRACE_ENTRY(file_lseek, file_lseek_entry,
 	TRACE_FILE_LSEEK,
 	F_STRUCT(
-		__field(	pid_t,		pid)
 		__field(	unsigned int,	fd)
 		__field(	loff_t,		offset)
 		__field(	int,		origin)
 		__field(	int,		retval)
 	),
-	F_printk("%d LSEEK", __entry->pid)
+	F_printk("LSEEK %u %lld %d %d", __entry->fd, __entry->offset,
+		__entry->origin, __entry->retval)
 );

@@ -30,7 +30,6 @@ static void probe_open(const char *filename, int flags, int mode,
 	if (!event)
 		return;
 	entry = ring_buffer_event_data(event);
-	entry->pid = task_pid_nr(current);
 	entry->flags = flags;
 	entry->mode = mode;
 	entry->retval = retval;
@@ -50,7 +49,6 @@ static void probe_close(unsigned int fd, int retval) {
 	if (!event)
 		return;
 	entry = ring_buffer_event_data(event);
-	entry->pid = task_pid_nr(current);
 	entry->fd = fd;
 	entry->retval = retval;
 	trace_buffer_unlock_commit(this_tracer->buffer, event, 0, 0);
@@ -68,7 +66,6 @@ static void probe_lseek(unsigned int fd, loff_t offset, int origin, int retval)
 	if (!event)
 		return;
 	entry = ring_buffer_event_data(event);
-	entry->pid = task_pid_nr(current);
 	entry->fd = fd;
 	entry->offset = offset;
 	entry->origin = origin;
@@ -124,8 +121,9 @@ static int print_line_open(struct trace_iterator *iter) {
 		format = "%d OPEN %s %#x %#o ERR %d\n";
 		field->retval *= -1;
 	}
-	return trace_seq_printf(&iter->seq, format, field->pid, field->filename,
-			field->flags, field->mode, field->retval);
+	return trace_seq_printf(&iter->seq, format, iter->ent->pid,
+			field->filename, field->flags, field->mode,
+			field->retval);
 }
 
 static int print_line_close(struct trace_iterator *iter) {
@@ -133,10 +131,10 @@ static int print_line_close(struct trace_iterator *iter) {
 	trace_assign_type(field, iter->ent);
 	if (IS_ERR_VALUE(field->retval))
 		return trace_seq_printf(&iter->seq, "%d CLOSE %d ERR %d\n",
-				field->pid, field->fd, field->retval);
+				iter->ent->pid, field->fd, field->retval);
 	else
 		return trace_seq_printf(&iter->seq, "%d CLOSE %d SUCCESS\n",
-				field->pid, field->fd);
+				iter->ent->pid, field->fd);
 }
 
 static int print_line_read(struct trace_iterator *iter) {
@@ -148,7 +146,7 @@ static int print_line_read(struct trace_iterator *iter) {
 		format = "%d READ %d %d ERR %d\n";
 		field->retval *= -1;
 	}
-	return trace_seq_printf(&iter->seq, format, field->pid, field->fd,
+	return trace_seq_printf(&iter->seq, format, iter->ent->pid, field->fd,
 			field->count, field->retval);
 }
 
@@ -161,7 +159,7 @@ static int print_line_write(struct trace_iterator *iter) {
 		format = "%d WRITE %d %d ERR %d\n";
 		field->retval *= -1;
 	}
-	return trace_seq_printf(&iter->seq, format, field->pid, field->fd,
+	return trace_seq_printf(&iter->seq, format, iter->ent->pid, field->fd,
 			field->count, field->retval);
 }
 
@@ -192,7 +190,7 @@ static int print_line_lseek(struct trace_iterator *iter) {
 		format = "%d LSEEK %d %d %d ERR %d\n";
 		field->retval *= -1;
 	}
-	return trace_seq_printf(&iter->seq, format, field->pid, field->fd,
+	return trace_seq_printf(&iter->seq, format, iter->ent->pid, field->fd,
 			field->offset, field->origin, field->retval);
 }
 
