@@ -403,6 +403,7 @@ FTRACE_ENTRY(file_close, file_close_entry,
 	F_printk("CLOSE %u %d", __entry->fd, __entry->retval)
 );
 
+/* Both file_read_entry and file_write_entry must be binary compatible */
 #define FILE_TRACE_RW_FIELDS \
 	__field(	unsigned int,	fd)		\
 	__field(	size_t,		count)		\
@@ -424,7 +425,8 @@ FTRACE_ENTRY(file_write, file_write_entry,
 
 #define FILE_TRACE_MAX_DATA 16
 
-/* An entry with length == 0 represents an error while reading/writing data */
+/* Both file_rdata_entry and file_wdata_entry must be binary compatible */
+/* If length == 0 then there was a fault while copying data */
 #define FILE_TRACE_DATA_FIELDS \
 	__field(	char,		length)				\
 	__array(	char,		data,	    FILE_TRACE_MAX_DATA)\

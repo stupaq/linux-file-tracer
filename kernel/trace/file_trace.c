@@ -56,16 +56,18 @@ static void probe_close(unsigned int fd, int retval) {
 	trace_buffer_unlock_commit(this_tracer->buffer, event, 0, 0);
 }
 
-static void probe_read(unsigned int fd, const char __user *buf, size_t count,
-		ssize_t retval) {
+static void helper_probe_data(unsigned int fd, const char __user *buf, size_t
+		count, ssize_t retval, enum trace_type etype, enum trace_type
+		dtype) {
 	struct ring_buffer_event *event;
+	/* It's ok since file_read/write_entry are binary compatible */
 	struct file_read_entry *entry;
 	ssize_t start;
 
 	if (!this_tracer)
 		return;
-	/* Place file_read_entry */
-	event = trace_buffer_lock_reserve(this_tracer->buffer, TRACE_FILE_READ,
+	/* Place file_read/write_entry */
+	event = trace_buffer_lock_reserve(this_tracer->buffer, etype,
 			sizeof(*entry), 0, 0);
 	if (!event)
 		return;
@@ -75,10 +77,11 @@ static void probe_read(unsigned int fd, const char __user *buf, size_t count,
 	entry->retval = retval;
 	trace_buffer_unlock_commit(this_tracer->buffer, event, 0, 0);
 	entry = NULL;
-	/* Place file_rdata_entries */
+	/* Place file_r/wdata_entries */
 	start = 0;
 	while(retval > 0) {
 		struct ring_buffer_event *event;
+		/* It's ok since file_r/wdata_entry are binary compatible */
 		struct file_rdata_entry *data;
 		char tmp[FILE_TRACE_MAX_DATA];
 		ssize_t todo = min(FILE_TRACE_MAX_DATA, retval);
@@ -86,8 +89,8 @@ static void probe_read(unsigned int fd, const char __user *buf, size_t count,
 		if (copy_from_user(tmp, buf + start, todo))
 			todo = 0;
 		/* We shall not lock trace buffer and sleep */
-		event = trace_buffer_lock_reserve(this_tracer->buffer,
-				TRACE_FILE_RDATA, sizeof(*data), 0, 0);
+		event = trace_buffer_lock_reserve(this_tracer->buffer, dtype,
+				sizeof(*data), 0, 0);
 		if (!event)
 			return;
 		data = ring_buffer_event_data(event);
@@ -102,9 +105,16 @@ static void probe_read(unsigned int fd, const char __user *buf, size_t count,
 	}
 }
 
+static void probe_read(unsigned int fd, const char __user *buf, size_t count,
+		ssize_t retval) {
+	helper_probe_data(fd, buf, count, retval, TRACE_FILE_READ,
+			TRACE_FILE_RDATA);
+}
+
 static void probe_write(unsigned int fd, const char __user *buf, size_t count,
 		ssize_t retval) {
-	// TODO
+	helper_probe_data(fd, buf, count, retval, TRACE_FILE_WRITE,
+			TRACE_FILE_WDATA);
 }
 
 static void probe_lseek(unsigned int fd, loff_t offset, int origin, int retval)
@@ -228,32 +238,44 @@ static int print_line_write(struct trace_iterator *iter) {
 			field->count, field->retval);
 }
 
+static int helper_print_data(struct trace_seq *seq, const char *data, ssize_t
+		length) {
+	ssize_t i;
+	int ret;
+	for (i = 0; i < length; ++i) {
+		if (!(ret = trace_seq_printf(seq, " %02x", data[i])))
+			return ret;
+	}
+	return 1;
+}
+
 static int print_line_rdata(struct trace_iterator *iter) {
 	struct file_rdata_entry *field;
 	trace_assign_type(field, iter->ent);
 	if (field->length) {
-		ssize_t i;
 		int ret;
 		if (!(ret = trace_seq_printf(&iter->seq, "%d READ_DATA",
 						iter->ent->pid)))
 			return ret;
-		for (i = 0; i < field->length; ++i) {
-			if (!(ret = trace_seq_printf(&iter->seq, " %02x",
-							field->data[i])))
-				return ret;
-		}
+		if (!(ret = helper_print_data(&iter->seq, field->data,
+						field->length)))
+			return ret;
 		return trace_seq_printf(&iter->seq, "\n");
-	} else {
-		return trace_seq_printf(&iter->seq, "READ_DATA_FAULT\n");
-	}
+	} else return trace_seq_printf(&iter->seq, "READ_DATA_FAULT\n");
 }
 
 static int print_line_wdata(struct trace_iterator *iter) {
 	struct file_wdata_entry *field;
 	trace_assign_type(field, iter->ent);
 	if (field->length) {
-		// TODO
-		return 1;
+		int ret;
+		if (!(ret = trace_seq_printf(&iter->seq, "%d WRITE_DATA",
+						iter->ent->pid)))
+			return ret;
+		if (!(ret = helper_print_data(&iter->seq, field->data,
+						field->length)))
+			return ret;
+		return trace_seq_printf(&iter->seq, "\n");
 	} else return trace_seq_printf(&iter->seq, "WRITE_DATA_FAULT\n");
 }
 
