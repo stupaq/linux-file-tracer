@@ -12,6 +12,8 @@
 
 DEFINE_TRACE(file_open);
 DEFINE_TRACE(file_close);
+DEFINE_TRACE(file_read);
+DEFINE_TRACE(file_write);
 DEFINE_TRACE(file_lseek);
 
 static struct trace_array *this_tracer = NULL;
@@ -54,6 +56,57 @@ static void probe_close(unsigned int fd, int retval) {
 	trace_buffer_unlock_commit(this_tracer->buffer, event, 0, 0);
 }
 
+static void probe_read(unsigned int fd, const char __user *buf, size_t count,
+		ssize_t retval) {
+	struct ring_buffer_event *event;
+	struct file_read_entry *entry;
+	ssize_t start;
+
+	if (!this_tracer)
+		return;
+	/* Place file_read_entry */
+	event = trace_buffer_lock_reserve(this_tracer->buffer, TRACE_FILE_READ,
+			sizeof(*entry), 0, 0);
+	if (!event)
+		return;
+	entry = ring_buffer_event_data(event);
+	entry->fd = fd;
+	entry->count = count;
+	entry->retval = retval;
+	trace_buffer_unlock_commit(this_tracer->buffer, event, 0, 0);
+	entry = NULL;
+	/* Place file_rdata_entries */
+	start = 0;
+	while(retval > 0) {
+		struct ring_buffer_event *event;
+		struct file_rdata_entry *data;
+		char tmp[FILE_TRACE_MAX_DATA];
+		ssize_t todo = min(FILE_TRACE_MAX_DATA, retval);
+		/* Todo == 0 means something gone wrong while copying */
+		if (copy_from_user(tmp, buf + start, todo))
+			todo = 0;
+		/* We shall not lock trace buffer and sleep */
+		event = trace_buffer_lock_reserve(this_tracer->buffer,
+				TRACE_FILE_RDATA, sizeof(*data), 0, 0);
+		if (!event)
+			return;
+		data = ring_buffer_event_data(event);
+		data->length = todo;
+		memmove(data->data, tmp, todo);
+		trace_buffer_unlock_commit(this_tracer->buffer, event, 0, 0);
+		retval -= todo;
+		start += todo;
+		/* Do not continue after fault */
+		if (todo == 0)
+			break;
+	}
+}
+
+static void probe_write(unsigned int fd, const char __user *buf, size_t count,
+		ssize_t retval) {
+	// TODO
+}
+
 static void probe_lseek(unsigned int fd, loff_t offset, int origin, int retval)
 {
 	struct ring_buffer_event *event;
@@ -91,6 +144,10 @@ static int file_trace_init(struct trace_array *tr) {
 		return ret;
 	if ((ret = register_trace_file_close(probe_close)))
 		return ret;
+	if ((ret = register_trace_file_read(probe_read)))
+		return ret;
+	if ((ret = register_trace_file_write(probe_write)))
+		return ret;
 	if ((ret = register_trace_file_lseek(probe_lseek)))
 		return ret;
 	return ret;
@@ -98,9 +155,11 @@ static int file_trace_init(struct trace_array *tr) {
 
 static void file_trace_reset(struct trace_array *tr) {
 	/* Unregister trace handlers */
-	register_trace_file_open(probe_open);
-	register_trace_file_close(probe_close);
 	register_trace_file_lseek(probe_lseek);
+	register_trace_file_write(probe_write);
+	register_trace_file_read(probe_read);
+	register_trace_file_close(probe_close);
+	register_trace_file_open(probe_open);
 
 	file_trace_stop(tr);
 	tracing_reset_online_cpus(tr);
@@ -141,13 +200,19 @@ static int print_line_read(struct trace_iterator *iter) {
 	struct file_read_entry *field;
 	const char *format;
 	trace_assign_type(field, iter->ent);
-	format = "%d READ %d %d SUCCESS %d\n";
-	if (IS_ERR_VALUE(field->retval)) {
-		format = "%d READ %d %d ERR %d\n";
-		field->retval *= -1;
+	if (field->retval == 0) {
+		format = "%d READ %d %d EOF\n";
+		return trace_seq_printf(&iter->seq, format, iter->ent->pid,
+				field->fd, field->count);
+	} else {
+		format = "%d READ %d %d SUCCESS %d\n";
+		if (IS_ERR_VALUE(field->retval)) {
+			format = "%d READ %d %d ERR %d\n";
+			field->retval *= -1;
+		}
+		return trace_seq_printf(&iter->seq, format, iter->ent->pid,
+				field->fd, field->count, field->retval);
 	}
-	return trace_seq_printf(&iter->seq, format, iter->ent->pid, field->fd,
-			field->count, field->retval);
 }
 
 static int print_line_write(struct trace_iterator *iter) {
@@ -167,9 +232,20 @@ static int print_line_rdata(struct trace_iterator *iter) {
 	struct file_rdata_entry *field;
 	trace_assign_type(field, iter->ent);
 	if (field->length) {
-		// TODO
-		return 1;
-	} else return trace_seq_printf(&iter->seq, "READ_DATA_FAULT\n");
+		ssize_t i;
+		int ret;
+		if (!(ret = trace_seq_printf(&iter->seq, "%d READ_DATA",
+						iter->ent->pid)))
+			return ret;
+		for (i = 0; i < field->length; ++i) {
+			if (!(ret = trace_seq_printf(&iter->seq, " %02x",
+							field->data[i])))
+				return ret;
+		}
+		return trace_seq_printf(&iter->seq, "\n");
+	} else {
+		return trace_seq_printf(&iter->seq, "READ_DATA_FAULT\n");
+	}
 }
 
 static int print_line_wdata(struct trace_iterator *iter) {

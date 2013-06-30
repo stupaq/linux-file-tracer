@@ -383,15 +383,19 @@ SYSCALL_DEFINE3(read, unsigned int, fd, char __user *, buf, size_t, count)
 	struct file *file;
 	ssize_t ret = -EBADF;
 	int fput_needed;
+	bool do_trace = false;
 
 	file = fget_light(fd, &fput_needed);
 	if (file) {
 		loff_t pos = file_pos_read(file);
 		ret = vfs_read(file, buf, count, &pos);
 		file_pos_write(file, pos);
+		do_trace = file_trace_enabled(file);
 		fput_light(file, fput_needed);
 	}
 
+	if (do_trace)
+		trace_file_read(fd, buf, count, ret);
 	return ret;
 }
 
@@ -401,15 +405,19 @@ SYSCALL_DEFINE3(write, unsigned int, fd, const char __user *, buf,
 	struct file *file;
 	ssize_t ret = -EBADF;
 	int fput_needed;
+	bool do_trace = false;
 
 	file = fget_light(fd, &fput_needed);
 	if (file) {
 		loff_t pos = file_pos_read(file);
 		ret = vfs_write(file, buf, count, &pos);
 		file_pos_write(file, pos);
+		do_trace = file_trace_enabled(file);
 		fput_light(file, fput_needed);
 	}
 
+	if (do_trace)
+		trace_file_write(fd, buf, count, ret);
 	return ret;
 }
 
@@ -419,6 +427,7 @@ SYSCALL_DEFINE(pread64)(unsigned int fd, char __user *buf,
 	struct file *file;
 	ssize_t ret = -EBADF;
 	int fput_needed;
+	bool do_trace = false;
 
 	if (pos < 0)
 		return -EINVAL;
@@ -428,9 +437,12 @@ SYSCALL_DEFINE(pread64)(unsigned int fd, char __user *buf,
 		ret = -ESPIPE;
 		if (file->f_mode & FMODE_PREAD)
 			ret = vfs_read(file, buf, count, &pos);
+		do_trace = file_trace_enabled(file);
 		fput_light(file, fput_needed);
 	}
 
+	if (do_trace)
+		trace_file_read(fd, buf, count, ret);
 	return ret;
 }
 #ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
@@ -448,6 +460,7 @@ SYSCALL_DEFINE(pwrite64)(unsigned int fd, const char __user *buf,
 	struct file *file;
 	ssize_t ret = -EBADF;
 	int fput_needed;
+	bool do_trace = false;
 
 	if (pos < 0)
 		return -EINVAL;
@@ -457,9 +470,12 @@ SYSCALL_DEFINE(pwrite64)(unsigned int fd, const char __user *buf,
 		ret = -ESPIPE;
 		if (file->f_mode & FMODE_PWRITE)  
 			ret = vfs_write(file, buf, count, &pos);
+		do_trace = file_trace_enabled(file);
 		fput_light(file, fput_needed);
 	}
 
+	if (do_trace)
+		trace_file_write(fd, buf, count, ret);
 	return ret;
 }
 #ifdef CONFIG_HAVE_SYSCALL_WRAPPERS

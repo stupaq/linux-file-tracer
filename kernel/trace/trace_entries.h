@@ -426,7 +426,7 @@ FTRACE_ENTRY(file_write, file_write_entry,
 
 /* An entry with length == 0 represents an error while reading/writing data */
 #define FILE_TRACE_DATA_FIELDS \
-	__field(	size_t,		length)				\
+	__field(	char,		length)				\
 	__array(	char,		data,	    FILE_TRACE_MAX_DATA)\
 
 FTRACE_ENTRY(file_rdata, file_rdata_entry,

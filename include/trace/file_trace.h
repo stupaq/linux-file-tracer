@@ -14,6 +14,16 @@ DECLARE_TRACE(file_close,
 	TP_PROTO(unsigned int fd, int retval),
 	TP_ARGS(fd, retval));
 
+DECLARE_TRACE(file_read,
+	TP_PROTO(unsigned int fd, const char __user *buf, size_t count, ssize_t
+		retval),
+	TP_ARGS(fd, buf, count, retval));
+
+DECLARE_TRACE(file_write,
+	TP_PROTO(unsigned int fd, const char __user *buf, size_t count, ssize_t
+		retval),
+	TP_ARGS(fd, buf, count, retval));
+
 DECLARE_TRACE(file_lseek,
 	TP_PROTO(unsigned int fd, loff_t offset, int origin, int retval),
 	TP_ARGS(fd, offset, origin, retval));
