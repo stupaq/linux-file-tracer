@@ -429,7 +429,7 @@ FTRACE_ENTRY(file_write, file_write_entry,
 /* If length == 0 then there was a fault while copying data */
 #define FILE_TRACE_DATA_FIELDS \
 	__field(	char,		length)				\
-	__array(	char,		data,	    FILE_TRACE_MAX_DATA)\
+	__dynamic_array(char,		data)				\
 
 FTRACE_ENTRY(file_rdata, file_rdata_entry,
 	TRACE_FILE_RDATA,

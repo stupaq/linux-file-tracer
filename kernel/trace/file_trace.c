@@ -90,7 +90,7 @@ static void helper_probe_data(unsigned int fd, const char __user *buf, size_t
 			todo = 0;
 		/* We shall not lock trace buffer and sleep */
 		event = trace_buffer_lock_reserve(this_tracer->buffer, dtype,
-				sizeof(*data), 0, 0);
+				sizeof(*data) + todo, 0, 0);
 		if (!event)
 			return;
 		data = ring_buffer_event_data(event);
