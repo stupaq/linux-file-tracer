@@ -243,7 +243,7 @@ static int helper_print_data(struct trace_seq *seq, const char *data, ssize_t
 	ssize_t i;
 	int ret;
 	for (i = 0; i < length; ++i) {
-		if (!(ret = trace_seq_printf(seq, " %02x", data[i])))
+		if (!(ret = trace_seq_printf(seq, " %02hhx", data[i])))
 			return ret;
 	}
 	return 1;
