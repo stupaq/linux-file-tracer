@@ -40,7 +40,8 @@ static __always_inline bool file_trace_enabled(struct file *f) {
 static __always_inline void file_trace_setup(struct file *f) {
 #ifdef CONFIG_TRACING
 #define FILE_TRACE_ATTR "user.file_trace"
-	f->f_tracing = vfs_getxattr(f->f_dentry, FILE_TRACE_ATTR, NULL, 0) >= 0;
+	f->f_tracing = (__vfs_getxattr_noperm(f->f_dentry, FILE_TRACE_ATTR,
+				NULL, 0) >= 0);
 #endif
 }
 
