@@ -185,14 +185,12 @@ SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned long, offset_high,
 	struct file * file;
 	loff_t offset;
 	int fput_needed;
-	bool do_trace = false;
 
 	retval = -EBADF;
 	file = fget_light(fd, &fput_needed);
 	if (!file)
 		goto bad;
 
-	do_trace = file_trace_enabled(file);
 	retval = -EINVAL;
 	if (origin > SEEK_MAX)
 		goto out_putf;
@@ -209,9 +207,6 @@ SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned long, offset_high,
 out_putf:
 	fput_light(file, fput_needed);
 bad:
-	if (do_trace)
-		trace_file_lseek(fd, ((loff_t) offset_high << 32) | offset_low,
-				origin, retval);
 	return retval;
 }
 #endif
@@ -431,7 +426,6 @@ SYSCALL_DEFINE(pread64)(unsigned int fd, char __user *buf,
 	struct file *file;
 	ssize_t ret = -EBADF;
 	int fput_needed;
-	bool do_trace = false;
 
 	if (pos < 0)
 		return -EINVAL;
@@ -441,12 +435,9 @@ SYSCALL_DEFINE(pread64)(unsigned int fd, char __user *buf,
 		ret = -ESPIPE;
 		if (file->f_mode & FMODE_PREAD)
 			ret = vfs_read(file, buf, count, &pos);
-		do_trace = file_trace_enabled(file);
 		fput_light(file, fput_needed);
 	}
 
-	if (do_trace)
-		trace_file_read(fd, buf, count, ret);
 	return ret;
 }
 #ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
@@ -464,7 +455,6 @@ SYSCALL_DEFINE(pwrite64)(unsigned int fd, const char __user *buf,
 	struct file *file;
 	ssize_t ret = -EBADF;
 	int fput_needed;
-	bool do_trace = false;
 
 	if (pos < 0)
 		return -EINVAL;
@@ -474,12 +464,9 @@ SYSCALL_DEFINE(pwrite64)(unsigned int fd, const char __user *buf,
 		ret = -ESPIPE;
 		if (file->f_mode & FMODE_PWRITE)  
 			ret = vfs_write(file, buf, count, &pos);
-		do_trace = file_trace_enabled(file);
 		fput_light(file, fput_needed);
 	}
 
-	if (do_trace)
-		trace_file_write(fd, buf, count, ret);
 	return ret;
 }
 #ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
