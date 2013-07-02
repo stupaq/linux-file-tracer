@@ -186,12 +186,12 @@ static void file_trace_print_header(struct seq_file *s) {
 static int print_line_open(struct trace_iterator *iter) {
 	struct file_open_entry *field;
 	const char *format;
-	typeof(field->retval) retval;
+	long retval;
 	trace_assign_type(field, iter->ent);
-	format = "%d OPEN %s %#x %#o SUCCESS %d\n";
+	format = "%d OPEN %s %#x %#o SUCCESS %ld\n";
 	retval = field->retval;
 	if (IS_ERR_VALUE(retval)) {
-		format = "%d OPEN %s %#x %#o ERR %d\n";
+		format = "%d OPEN %s %#x %#o ERR %ld\n";
 		retval *= -1;
 	}
 	return trace_seq_printf(&iter->seq, format, iter->ent->pid,
@@ -202,27 +202,27 @@ static int print_line_close(struct trace_iterator *iter) {
 	struct file_close_entry *field;
 	trace_assign_type(field, iter->ent);
 	if (IS_ERR_VALUE(field->retval))
-		return trace_seq_printf(&iter->seq, "%d CLOSE %d ERR %d\n",
+		return trace_seq_printf(&iter->seq, "%d CLOSE %u ERR %d\n",
 				iter->ent->pid, field->fd, field->retval);
 	else
-		return trace_seq_printf(&iter->seq, "%d CLOSE %d SUCCESS\n",
+		return trace_seq_printf(&iter->seq, "%d CLOSE %u SUCCESS\n",
 				iter->ent->pid, field->fd);
 }
 
 static int print_line_read(struct trace_iterator *iter) {
 	struct file_read_entry *field;
 	const char *format;
-	typeof(field->retval) retval;
+	ssize_t retval;
 	trace_assign_type(field, iter->ent);
 	retval = field->retval;
 	if (retval == 0) {
-		format = "%d READ %d %d EOF\n";
+		format = "%d READ %u %u EOF\n";
 		return trace_seq_printf(&iter->seq, format, iter->ent->pid,
 				field->fd, field->count);
 	} else {
-		format = "%d READ %d %d SUCCESS %d\n";
+		format = "%d READ %u %u SUCCESS %d\n";
 		if (IS_ERR_VALUE(retval)) {
-			format = "%d READ %d %d ERR %d\n";
+			format = "%d READ %u %u ERR %d\n";
 			retval *= -1;
 		}
 		return trace_seq_printf(&iter->seq, format, iter->ent->pid,
@@ -233,12 +233,12 @@ static int print_line_read(struct trace_iterator *iter) {
 static int print_line_write(struct trace_iterator *iter) {
 	struct file_write_entry *field;
 	const char *format;
-	typeof(field->retval) retval;
+	ssize_t retval;
 	trace_assign_type(field, iter->ent);
-	format = "%d WRITE %d %d SUCCESS %d\n";
+	format = "%d WRITE %u %u SUCCESS %d\n";
 	retval = field->retval;
 	if (IS_ERR_VALUE(retval)) {
-		format = "%d WRITE %d %d ERR %d\n";
+		format = "%d WRITE %u %u ERR %d\n";
 		retval *= -1;
 	}
 	return trace_seq_printf(&iter->seq, format, iter->ent->pid, field->fd,
@@ -291,10 +291,10 @@ static int print_line_lseek(struct trace_iterator *iter) {
 	const char *format;
 	typeof(field->retval) retval;
 	trace_assign_type(field, iter->ent);
-	format = "%d LSEEK %d %d %d SUCCESS %d\n";
+	format = "%d LSEEK %u %lld %u SUCCESS %d\n";
 	retval = field->retval;
 	if (IS_ERR_VALUE(retval)) {
-		format = "%d LSEEK %d %d %d ERR %d\n";
+		format = "%d LSEEK %u %lld %u ERR %d\n";
 		retval *= -1;
 	}
 	return trace_seq_printf(&iter->seq, format, iter->ent->pid, field->fd,

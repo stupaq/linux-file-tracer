@@ -434,13 +434,13 @@ FTRACE_ENTRY(file_write, file_write_entry,
 FTRACE_ENTRY(file_rdata, file_rdata_entry,
 	TRACE_FILE_RDATA,
 	F_STRUCT(FILE_TRACE_DATA_FIELDS),
-	F_printk("READ_DATA %d", __entry->length)
+	F_printk("READ_DATA %hhd", __entry->length)
 );
 
 FTRACE_ENTRY(file_wdata, file_wdata_entry,
 	TRACE_FILE_WDATA,
 	F_STRUCT(FILE_TRACE_DATA_FIELDS),
-	F_printk("WRITE_DATA %d", __entry->length)
+	F_printk("WRITE_DATA %hhd", __entry->length)
 );
 
 FTRACE_ENTRY(file_lseek, file_lseek_entry,
@@ -451,6 +451,6 @@ FTRACE_ENTRY(file_lseek, file_lseek_entry,
 		__field(	unsigned int,	origin)
 		__field(	int,		retval)
 	),
-	F_printk("LSEEK %u %lld %d %d", __entry->fd, __entry->offset,
+	F_printk("LSEEK %u %lld %u %d", __entry->fd, __entry->offset,
 		__entry->origin, __entry->retval)
 );
