@@ -25,7 +25,8 @@ DECLARE_TRACE(file_write,
 	TP_ARGS(fd, buf, count, retval));
 
 DECLARE_TRACE(file_lseek,
-	TP_PROTO(unsigned int fd, loff_t offset, int origin, int retval),
+	TP_PROTO(unsigned int fd, loff_t offset, unsigned int origin, int
+		retval),
 	TP_ARGS(fd, offset, origin, retval));
 
 static __always_inline bool file_trace_enabled(struct file *f) {

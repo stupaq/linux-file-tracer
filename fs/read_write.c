@@ -154,12 +154,14 @@ SYSCALL_DEFINE3(lseek, unsigned int, fd, off_t, offset, unsigned int, origin)
 	off_t retval;
 	struct file * file;
 	int fput_needed;
+	bool do_trace = false;
 
 	retval = -EBADF;
 	file = fget_light(fd, &fput_needed);
 	if (!file)
 		goto bad;
 
+	do_trace = file_trace_enabled(file);
 	retval = -EINVAL;
 	if (origin <= SEEK_MAX) {
 		loff_t res = vfs_llseek(file, offset, origin);
@@ -169,7 +171,7 @@ SYSCALL_DEFINE3(lseek, unsigned int, fd, off_t, offset, unsigned int, origin)
 	}
 	fput_light(file, fput_needed);
 bad:
-	if (file_trace_enabled(file))
+	if (do_trace)
 		trace_file_lseek(fd, offset, origin, retval);
 	return retval;
 }
@@ -183,12 +185,14 @@ SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned long, offset_high,
 	struct file * file;
 	loff_t offset;
 	int fput_needed;
+	bool do_trace = false;
 
 	retval = -EBADF;
 	file = fget_light(fd, &fput_needed);
 	if (!file)
 		goto bad;
 
+	do_trace = file_trace_enabled(file);
 	retval = -EINVAL;
 	if (origin > SEEK_MAX)
 		goto out_putf;
@@ -205,7 +209,7 @@ SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned long, offset_high,
 out_putf:
 	fput_light(file, fput_needed);
 bad:
-	if (file_trace_enabled(file))
+	if (do_trace)
 		trace_file_lseek(fd, ((loff_t) offset_high << 32) | offset_low,
 				origin, retval);
 	return retval;

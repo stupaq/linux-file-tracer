@@ -448,7 +448,7 @@ FTRACE_ENTRY(file_lseek, file_lseek_entry,
 	F_STRUCT(
 		__field(	unsigned int,	fd)
 		__field(	loff_t,		offset)
-		__field(	int,		origin)
+		__field(	unsigned int,	origin)
 		__field(	int,		retval)
 	),
 	F_printk("LSEEK %u %lld %d %d", __entry->fd, __entry->offset,

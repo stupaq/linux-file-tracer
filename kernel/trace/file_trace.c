@@ -62,7 +62,7 @@ static void helper_probe_data(unsigned int fd, const char __user *buf, size_t
 	struct ring_buffer_event *event;
 	/* It's ok since file_read/write_entry are binary compatible */
 	struct file_read_entry *entry;
-	ssize_t start;
+	ssize_t start, left;
 
 	if (!this_tracer)
 		return;
@@ -77,14 +77,17 @@ static void helper_probe_data(unsigned int fd, const char __user *buf, size_t
 	entry->retval = retval;
 	trace_buffer_unlock_commit(this_tracer->buffer, event, 0, 0);
 	entry = NULL;
+	event = NULL;
 	/* Place file_r/wdata_entries */
 	start = 0;
-	while(retval > 0) {
-		struct ring_buffer_event *event;
+	left = retval;
+	if (dtype == TRACE_FILE_WDATA)
+		left = count;
+	while(left > 0) {
 		/* It's ok since file_r/wdata_entry are binary compatible */
 		struct file_rdata_entry *data;
 		char tmp[FILE_TRACE_MAX_DATA];
-		ssize_t todo = min(FILE_TRACE_MAX_DATA, retval);
+		ssize_t todo = min(FILE_TRACE_MAX_DATA, left);
 		/* Todo == 0 means something gone wrong while copying */
 		if (copy_from_user(tmp, buf + start, todo))
 			todo = 0;
@@ -97,7 +100,7 @@ static void helper_probe_data(unsigned int fd, const char __user *buf, size_t
 		data->length = todo;
 		memmove(data->data, tmp, todo);
 		trace_buffer_unlock_commit(this_tracer->buffer, event, 0, 0);
-		retval -= todo;
+		left -= todo;
 		start += todo;
 		/* Do not continue after fault */
 		if (todo == 0)
@@ -117,8 +120,8 @@ static void probe_write(unsigned int fd, const char __user *buf, size_t count,
 			TRACE_FILE_WDATA);
 }
 
-static void probe_lseek(unsigned int fd, loff_t offset, int origin, int retval)
-{
+static void probe_lseek(unsigned int fd, loff_t offset, unsigned int origin, int
+		retval) {
 	struct ring_buffer_event *event;
 	struct file_lseek_entry *entry;
 
@@ -183,16 +186,16 @@ static void file_trace_print_header(struct seq_file *s) {
 static int print_line_open(struct trace_iterator *iter) {
 	struct file_open_entry *field;
 	const char *format;
-
+	typeof(field->retval) retval;
 	trace_assign_type(field, iter->ent);
 	format = "%d OPEN %s %#x %#o SUCCESS %d\n";
-	if (IS_ERR_VALUE(field->retval)) {
+	retval = field->retval;
+	if (IS_ERR_VALUE(retval)) {
 		format = "%d OPEN %s %#x %#o ERR %d\n";
-		field->retval *= -1;
+		retval *= -1;
 	}
 	return trace_seq_printf(&iter->seq, format, iter->ent->pid,
-			field->filename, field->flags, field->mode,
-			field->retval);
+			field->filename, field->flags, field->mode, retval);
 }
 
 static int print_line_close(struct trace_iterator *iter) {
@@ -209,33 +212,37 @@ static int print_line_close(struct trace_iterator *iter) {
 static int print_line_read(struct trace_iterator *iter) {
 	struct file_read_entry *field;
 	const char *format;
+	typeof(field->retval) retval;
 	trace_assign_type(field, iter->ent);
-	if (field->retval == 0) {
+	retval = field->retval;
+	if (retval == 0) {
 		format = "%d READ %d %d EOF\n";
 		return trace_seq_printf(&iter->seq, format, iter->ent->pid,
 				field->fd, field->count);
 	} else {
 		format = "%d READ %d %d SUCCESS %d\n";
-		if (IS_ERR_VALUE(field->retval)) {
+		if (IS_ERR_VALUE(retval)) {
 			format = "%d READ %d %d ERR %d\n";
-			field->retval *= -1;
+			retval *= -1;
 		}
 		return trace_seq_printf(&iter->seq, format, iter->ent->pid,
-				field->fd, field->count, field->retval);
+				field->fd, field->count, retval);
 	}
 }
 
 static int print_line_write(struct trace_iterator *iter) {
 	struct file_write_entry *field;
 	const char *format;
+	typeof(field->retval) retval;
 	trace_assign_type(field, iter->ent);
 	format = "%d WRITE %d %d SUCCESS %d\n";
-	if (IS_ERR_VALUE(field->retval)) {
+	retval = field->retval;
+	if (IS_ERR_VALUE(retval)) {
 		format = "%d WRITE %d %d ERR %d\n";
-		field->retval *= -1;
+		retval *= -1;
 	}
 	return trace_seq_printf(&iter->seq, format, iter->ent->pid, field->fd,
-			field->count, field->retval);
+			field->count, retval);
 }
 
 static int helper_print_data(struct trace_seq *seq, const char *data, ssize_t
@@ -282,14 +289,16 @@ static int print_line_wdata(struct trace_iterator *iter) {
 static int print_line_lseek(struct trace_iterator *iter) {
 	struct file_lseek_entry *field;
 	const char *format;
+	typeof(field->retval) retval;
 	trace_assign_type(field, iter->ent);
 	format = "%d LSEEK %d %d %d SUCCESS %d\n";
-	if (IS_ERR_VALUE(field->retval)) {
+	retval = field->retval;
+	if (IS_ERR_VALUE(retval)) {
 		format = "%d LSEEK %d %d %d ERR %d\n";
-		field->retval *= -1;
+		retval *= -1;
 	}
 	return trace_seq_printf(&iter->seq, format, iter->ent->pid, field->fd,
-			field->offset, field->origin, field->retval);
+			field->offset, field->origin, retval);
 }
 
 /* Printf dispatcher */

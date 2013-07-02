@@ -1046,6 +1046,7 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 {
 	char *tmp = getname(filename);
 	int fd = PTR_ERR(tmp);
+	bool do_trace = false;
 
 	if (!IS_ERR(tmp)) {
 		fd = get_unused_fd_flags(flags);
@@ -1058,10 +1059,11 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 				fsnotify_open(f->f_path.dentry);
 				fd_install(fd, f);
 				file_trace_setup(f);
-				if (file_trace_enabled(f))
-					trace_file_open(tmp, flags, mode, fd);
+				do_trace = file_trace_enabled(f);
 			}
 		}
+		if (do_trace)
+			trace_file_open(tmp, flags, mode, fd);
 		putname(tmp);
 	}
 	return fd;
