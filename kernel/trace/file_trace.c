@@ -6,6 +6,7 @@
 
 #include <linux/limits.h>
 #include <linux/ftrace.h>
+#include <linux/namei.h>
 #include "trace.h"
 
 #include <trace/file_trace.h>
@@ -19,25 +20,40 @@ DEFINE_TRACE(file_lseek);
 static struct trace_array *this_tracer = NULL;
 
 /* Trace handlers */
-static void probe_open(const char *filename, int flags, int mode,
+static void probe_open(const char __user *__filename, int flags, int mode,
 		long retval) {
 	struct ring_buffer_event *event;
 	struct file_open_entry *entry;
-	size_t fsize = strnlen(filename, PATH_MAX - 1) + 1;
-
+	size_t fsize;
+	char *filename;
+	
 	if (!this_tracer)
 		return;
+
+	/* alloc filename */
+	if (IS_ERR(filename = getname(__filename)))
+		goto fail_filename;
+	fsize = strnlen(filename, PATH_MAX - 1) + 1;
+
+	/* alloc event */
 	event = trace_buffer_lock_reserve(this_tracer->buffer, TRACE_FILE_OPEN,
 			sizeof(*entry) + fsize, 0, 0);
 	if (!event)
-		return;
+		goto fail_event;
+
 	entry = ring_buffer_event_data(event);
 	entry->flags = flags;
 	entry->mode = mode;
 	entry->retval = retval;
 	strncpy(entry->filename, filename, fsize);
 	entry->filename[fsize - 1]  = '\0';
+	/* free event */
 	trace_buffer_unlock_commit(this_tracer->buffer, event, 0, 0);
+fail_event:
+	/* free filename */
+	putname(filename);
+fail_filename:
+	return;
 }
 
 static void probe_close(unsigned int fd, int retval) {

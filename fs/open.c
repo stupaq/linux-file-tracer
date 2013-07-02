@@ -1046,7 +1046,6 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 {
 	char *tmp = getname(filename);
 	int fd = PTR_ERR(tmp);
-	bool do_trace = false;
 
 	if (!IS_ERR(tmp)) {
 		fd = get_unused_fd_flags(flags);
@@ -1058,12 +1057,12 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 			} else {
 				fsnotify_open(f->f_path.dentry);
 				fd_install(fd, f);
+				/* This makes perfect sense, we do not trace
+				 * openat syscall, but we do want to trace other
+				 * syscalls on this fd */
 				file_trace_setup(f);
-				do_trace = file_trace_enabled(f);
 			}
 		}
-		if (do_trace)
-			trace_file_open(tmp, flags, mode, fd);
 		putname(tmp);
 	}
 	return fd;
@@ -1072,11 +1071,15 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 SYSCALL_DEFINE3(open, const char __user *, filename, int, flags, int, mode)
 {
 	long ret;
+	int flags_orig = flags;
+	bool do_trace = file_trace_enabled_f(filename);
 
 	if (force_o_largefile())
 		flags |= O_LARGEFILE;
 
 	ret = do_sys_open(AT_FDCWD, filename, flags, mode);
+	if (do_trace)
+		trace_file_open(filename, flags_orig, mode, ret);
 	/* avoid REGPARM breakage on x86: */
 	asmlinkage_protect(3, ret, filename, flags, mode);
 	return ret;
