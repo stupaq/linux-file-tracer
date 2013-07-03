@@ -184,11 +184,11 @@ static int file_trace_init(struct trace_array *tr) {
 
 static void file_trace_reset(struct trace_array *tr) {
 	/* Unregister trace handlers */
-	register_trace_file_lseek(probe_lseek);
-	register_trace_file_write(probe_write);
-	register_trace_file_read(probe_read);
-	register_trace_file_close(probe_close);
-	register_trace_file_open(probe_open);
+	unregister_trace_file_lseek(probe_lseek);
+	unregister_trace_file_write(probe_write);
+	unregister_trace_file_read(probe_read);
+	unregister_trace_file_close(probe_close);
+	unregister_trace_file_open(probe_open);
 
 	file_trace_stop(tr);
 	tracing_reset_online_cpus(tr);
