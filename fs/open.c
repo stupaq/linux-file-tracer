@@ -1055,12 +1055,12 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 				put_unused_fd(fd);
 				fd = PTR_ERR(f);
 			} else {
-				fsnotify_open(f->f_path.dentry);
-				fd_install(fd, f);
 				/* This makes perfect sense, we do not trace
 				 * openat syscall, but we do want to trace other
 				 * syscalls on this fd */
 				file_trace_setup(f);
+				fsnotify_open(f->f_path.dentry);
+				fd_install(fd, f);
 			}
 		}
 		putname(tmp);
@@ -1176,8 +1176,6 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 
 out_unlock:
 	spin_unlock(&files->file_lock);
-	if (do_trace)
-		trace_file_close(fd, -EBADF);
 	return -EBADF;
 }
 EXPORT_SYMBOL(sys_close);
