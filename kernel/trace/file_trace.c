@@ -26,7 +26,7 @@ static void probe_open(const char __user *__filename, int flags, int mode,
 	struct file_open_entry *entry;
 	size_t fsize;
 	char *filename;
-	
+
 	if (!this_tracer)
 		return;
 
@@ -265,11 +265,15 @@ static int helper_print_data(struct trace_seq *seq, const char *data, ssize_t
 		length) {
 	ssize_t i;
 	int ret;
-	for (i = 0; i < length; ++i) {
-		if (!(ret = trace_seq_printf(seq, " %02hhx", data[i])))
-			return ret;
+	if (length) {
+		for (i = 0; i < length; ++i) {
+			if (!(ret = trace_seq_printf(seq, " %02hhx", data[i])))
+				return ret;
+		}
+		return trace_seq_printf(seq, "\n");
+	} else {
+		return trace_seq_printf(seq, "_FAULT\n");
 	}
-	return trace_seq_printf(seq, "\n");
 }
 
 static int print_line_rdata(struct trace_iterator *iter) {
@@ -279,11 +283,7 @@ static int print_line_rdata(struct trace_iterator *iter) {
 	ret = trace_seq_printf(&iter->seq, "%d READ_DATA", iter->ent->pid);
 	if (!ret)
 		return ret;
-	if (field->length)
-		ret = helper_print_data(&iter->seq, field->data, field->length);
-	else
-		ret = trace_seq_printf(&iter->seq, " READ_DATA_FAULT\n");
-	return ret;
+	return helper_print_data(&iter->seq, field->data, field->length);
 }
 
 static int print_line_wdata(struct trace_iterator *iter) {
@@ -293,11 +293,7 @@ static int print_line_wdata(struct trace_iterator *iter) {
 	ret = trace_seq_printf(&iter->seq, "%d WRITE_DATA", iter->ent->pid);
 	if (!ret)
 		return ret;
-	if (field->length)
-		ret = helper_print_data(&iter->seq, field->data, field->length);
-	else
-		ret = trace_seq_printf(&iter->seq, " WRITE_DATA_FAULT\n");
-	return ret;
+	return helper_print_data(&iter->seq, field->data, field->length);
 }
 
 static int print_line_lseek(struct trace_iterator *iter) {
