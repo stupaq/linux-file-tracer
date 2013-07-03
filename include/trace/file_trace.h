@@ -51,9 +51,12 @@ static __always_inline bool file_trace_enabled_f(const char __user *filename)
 {
 #ifdef CONFIG_TRACING
 	struct path p;
+	bool ret;
 	if (IS_ERR_VALUE(user_path(filename, &p)))
 		return false;
-	return file_trace_enabled_d(p.dentry);
+	ret = file_trace_enabled_d(p.dentry);
+	path_put(&p);
+	return ret;
 #else
 	return false;
 #endif
