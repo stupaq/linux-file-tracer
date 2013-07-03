@@ -269,43 +269,41 @@ static int helper_print_data(struct trace_seq *seq, const char *data, ssize_t
 		if (!(ret = trace_seq_printf(seq, " %02hhx", data[i])))
 			return ret;
 	}
-	return 1;
+	return trace_seq_printf(seq, "\n");
 }
 
 static int print_line_rdata(struct trace_iterator *iter) {
 	struct file_rdata_entry *field;
+	int ret;
 	trace_assign_type(field, iter->ent);
-	if (field->length) {
-		int ret;
-		if (!(ret = trace_seq_printf(&iter->seq, "%d READ_DATA",
-						iter->ent->pid)))
-			return ret;
-		if (!(ret = helper_print_data(&iter->seq, field->data,
-						field->length)))
-			return ret;
-		return trace_seq_printf(&iter->seq, "\n");
-	} else return trace_seq_printf(&iter->seq, "READ_DATA_FAULT\n");
+	ret = trace_seq_printf(&iter->seq, "%d READ_DATA", iter->ent->pid);
+	if (!ret)
+		return ret;
+	if (field->length)
+		ret = helper_print_data(&iter->seq, field->data, field->length);
+	else
+		ret = trace_seq_printf(&iter->seq, " READ_DATA_FAULT\n");
+	return ret;
 }
 
 static int print_line_wdata(struct trace_iterator *iter) {
 	struct file_wdata_entry *field;
+	int ret;
 	trace_assign_type(field, iter->ent);
-	if (field->length) {
-		int ret;
-		if (!(ret = trace_seq_printf(&iter->seq, "%d WRITE_DATA",
-						iter->ent->pid)))
-			return ret;
-		if (!(ret = helper_print_data(&iter->seq, field->data,
-						field->length)))
-			return ret;
-		return trace_seq_printf(&iter->seq, "\n");
-	} else return trace_seq_printf(&iter->seq, "WRITE_DATA_FAULT\n");
+	ret = trace_seq_printf(&iter->seq, "%d WRITE_DATA", iter->ent->pid);
+	if (!ret)
+		return ret;
+	if (field->length)
+		ret = helper_print_data(&iter->seq, field->data, field->length);
+	else
+		ret = trace_seq_printf(&iter->seq, " WRITE_DATA_FAULT\n");
+	return ret;
 }
 
 static int print_line_lseek(struct trace_iterator *iter) {
 	struct file_lseek_entry *field;
 	const char *format;
-	typeof(field->retval) retval;
+	int retval;
 	trace_assign_type(field, iter->ent);
 	format = "%d LSEEK %u %lld %u SUCCESS %d\n";
 	retval = field->retval;
