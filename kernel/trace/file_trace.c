@@ -219,7 +219,7 @@ static int print_line_close(struct trace_iterator *iter) {
 	trace_assign_type(field, iter->ent);
 	if (IS_ERR_VALUE(field->retval))
 		return trace_seq_printf(&iter->seq, "%d CLOSE %u ERR %d\n",
-				iter->ent->pid, field->fd, field->retval);
+				iter->ent->pid, field->fd, -field->retval);
 	else
 		return trace_seq_printf(&iter->seq, "%d CLOSE %u SUCCESS\n",
 				iter->ent->pid, field->fd);
