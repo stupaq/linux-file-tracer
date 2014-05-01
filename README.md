@@ -21,3 +21,6 @@ Presence of `user.file_trace` attribute is determined with no respect to
 attributes access permissions of the calling process. Since tracing interface
 should never be exposed to unprivileged user this design poses no danger to
 widely understand system security.
+
+
+Brought to the world by Mateusz Machalica.
